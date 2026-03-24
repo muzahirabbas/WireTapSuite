@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>WiretapSuite: Reverse Engineer & Automate Web App APIs</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0e0e14;
+      color: #d4d4d4;
+      display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #23234a 0%, #3b1f6b 100%);
+      border-bottom: 1px solid #333;
+      flex-shrink: 0;
+    }
+    .header h1 { font-size: 18px; font-weight: 700; color: #fff; }
+    .header .subtitle { font-size: 11px; color: #aaa; margin-top: 2px; }
+    .header-stats { display: flex; gap: 14px; align-items: center; }
+    .stat-badge {
+      text-align: center; font-size: 10px; color: #aaa;
+    }
+    .stat-badge strong { display: block; font-size: 16px; color: #fff; }
+    .stat-badge.mutation strong { color: #f0932b; }
+    .stat-badge.graphql  strong { color: #a29bfe; }
+
+    /* ── Top bar ── */
+    .top-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px;
+      background: #16162a;
+      border-bottom: 1px solid #333;
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    .filter-btn {
+      padding: 4px 10px; border: 1px solid #444; border-radius: 12px;
+      background: #1e2030; color: #ccc; cursor: pointer; font-size: 11px; transition: all 0.15s;
+    }
+    .filter-btn:hover  { background: #2a2a4a; }
+    .filter-btn.active { background: #667eea; border-color: #667eea; color: white; }
+    .filter-btn.method-graphql  { border-color: #9c4dcc; }
+    .filter-btn.method-mutation { border-color: #e67e00; }
+    .filter-btn.method-failed   { border-color: #dc3545; }
+    #searchInput {
+      flex: 1; min-width: 180px; padding: 5px 12px;
+      border: 1px solid #444; border-radius: 6px;
+      background: #1e2030; color: #ddd; font-size: 12px;
+    }
+    .top-btn {
+      padding: 5px 12px; border: none; border-radius: 4px;
+      cursor: pointer; font-size: 11px; font-weight: 600;
+    }
+    .btn-refresh  { background: #17a2b8; color: white; }
+    .btn-clear    { background: #444; color: #ccc; }
+    .btn-export   { background: #28a745; color: white; }
+    .btn-schema   { background: #6f42c1; color: white; }
+
+    /* ── Main layout ── */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Request list ── */
+    .list-panel {
+      width: 300px; flex-shrink: 0;
+      border-right: 1px solid #333;
+      overflow-y: auto;
+      background: #12121e;
+    }
+    .request-item {
+      padding: 10px 14px; border-bottom: 1px solid #1e1e30;
+      cursor: pointer; transition: background 0.15s;
+      border-left: 3px solid transparent;
+    }
+    .request-item:hover    { background: #1a1a30; }
+    .request-item.selected { background: #1e1e3a; border-left-color: #667eea; }
+    .request-item.is-mutation { border-left-color: #e67e00; background: linear-gradient(90deg,#1a1200 0,transparent 40px); }
+    .request-item.is-graphql:not(.is-mutation) { border-left-color: #9c4dcc; }
+    .request-item.is-failed { border-left-color: #dc3545; }
+
+    .method-badge {
+      display: inline-block; font-size: 9px; font-weight: 800;
+      padding: 2px 6px; border-radius: 3px; margin-right: 6px; text-transform: uppercase;
+    }
+    .method-badge.GET    { background: #1a5e2e; color: #51cf66; }
+    .method-badge.POST   { background: #0a2e5a; color: #74c0fc; }
+    .method-badge.PUT    { background: #3a2e00; color: #ffd43b; }
+    .method-badge.DELETE { background: #5a0e0e; color: #ff6b6b; }
+    .method-badge.PATCH  { background: #2e1a5a; color: #b197fc; }
+    .method-badge.WS     { background: #1e2e3a; color: #74c0fc; }
+
+    .tag-dot {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+      margin-left: 4px; vertical-align: middle;
+    }
+    .tag-dot.gql { background: #9c4dcc; }
+    .tag-dot.mut { background: #f0932b; }
+
+    .req-url  { font-size: 11px; color: #aaa; font-family: Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+    .req-meta { font-size: 10px; color: #666; margin-top: 3px; display: flex; gap: 6px; }
+    .req-meta span { background: #1e1e30; padding: 1px 5px; border-radius: 3px; }
+
+    /* ── Right panel (tabs) ── */
+    .right-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .panel-tabs { display: flex; background: #16162a; border-bottom: 1px solid #333; flex-shrink: 0; }
+    .panel-tab  {
+      padding: 10px 18px; cursor: pointer; font-size: 12px; font-weight: 500; color: #888;
+      border-bottom: 2px solid transparent; transition: all 0.15s;
+    }
+    .panel-tab:hover  { color: #ccc; }
+    .panel-tab.active { color: #667eea; border-bottom-color: #667eea; }
+
+    .tab-content { display: none; flex: 1; overflow: auto; padding: 16px; }
+    .tab-content.active { display: block; }
+
+    /* ── Detail view ── */
+    .empty-detail { display: flex; align-items: center; justify-content: center; flex: 1; color: #555; font-size: 14px; text-align: center; }
+    .section { margin-bottom: 14px; border: 1px solid #2a2a40; border-radius: 6px; overflow: hidden; }
+    .section-title { padding: 8px 12px; background: #1e1e38; font-size: 11px; color: #a29bfe; text-transform: uppercase; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+    .section-title button { background: none; border: none; color: #667eea; cursor: pointer; font-size: 11px; }
+    .section-title button:hover { color: #a29bfe; }
+    .section-content { padding: 10px 12px; }
+    .code-block {
+      background: #0e0e1a; color: #d4d4d4; border-radius: 4px;
+      padding: 10px; font-family: Consolas, Monaco, monospace; font-size: 11px;
+      white-space: pre-wrap; word-break: break-all; max-height: 250px; overflow-y: auto;
+    }
+    .code-block .key     { color: #9cdcfe; }
+    .code-block .string  { color: #ce9178; }
+    .code-block .number  { color: #b5cea8; }
+    .code-block .boolean { color: #569cd6; }
+    .code-block .null    { color: #569cd6; }
+
+    /* Highlight boxes */
+    .gql-box {
+      background: #1a0e2a; border-left: 3px solid #9c4dcc;
+      padding: 10px 14px; margin-bottom: 12px; border-radius: 4px;
+    }
+    .gql-box.mutation  { background: #1a0e00; border-left-color: #f0932b; }
+    .gql-box strong    { color: #d6b4fd; }
+    .gql-box.mutation strong { color: #ffd09e; }
+
+    .action-box {
+      background: #0e1a0e; border-left: 3px solid #2ecc71;
+      padding: 10px 14px; margin-bottom: 12px; border-radius: 4px; font-size: 11px;
+    }
+    .action-box strong { color: #51cf66; }
+
+    /* Replay bundle */
+    .replay-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+    .replay-tab-btn {
+      padding: 3px 10px; border: 1px solid #444; border-radius: 10px;
+      background: #1e2030; color: #ccc; cursor: pointer; font-size: 11px; font-weight: 600;
+    }
+    .replay-tab-btn.active { background: #667eea; border-color: #667eea; color: white; }
+    .replay-code { background: #0e0e1a; color: #d4d4d4; border-radius: 4px; padding: 10px; font-family: Consolas,monospace; font-size: 11px; white-space: pre-wrap; word-break: break-all; max-height: 180px; overflow-y: auto; }
+
+    /* Replay form */
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-size: 11px; color: #888; margin-bottom: 4px; }
+    .form-group select,
+    .form-group input,
+    .form-group textarea {
+      width: 100%; padding: 7px 10px;
+      background: #1e2030; border: 1px solid #444; border-radius: 4px;
+      color: #ddd; font-family: Consolas, monospace; font-size: 11px;
+    }
+    .form-group textarea { min-height: 80px; resize: vertical; }
+    .btn-primary { padding: 8px 18px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
+    .btn-primary:hover { background: #5a6fd6; }
+
+    /* ── Timeline tab ── */
+    .timeline { position: relative; padding-left: 20px; }
+    .timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: #2a2a40; }
+    .tl-item { position: relative; margin-bottom: 12px; padding-left: 14px; }
+    .tl-dot {
+      position: absolute; left: -13px; top: 3px;
+      width: 10px; height: 10px; border-radius: 50%;
+      border: 2px solid #333;
+    }
+    .tl-dot.action    { background: #2ecc71; border-color: #27ae60; }
+    .tl-dot.request   { background: #667eea; border-color: #5a6fd6; }
+    .tl-dot.mutation  { background: #f0932b; border-color: #e67e00; }
+    .tl-dot.graphql   { background: #9c4dcc; border-color: #8e44ad; }
+    .tl-dot.failed    { background: #e74c3c; border-color: #c0392b; }
+    .tl-time   { font-size: 10px; color: #555; margin-bottom: 3px; font-family: Consolas, monospace; }
+    .tl-label  { font-size: 12px; font-weight: 600; color: #d4d4d4; }
+    .tl-detail { font-size: 11px; color: #888; font-family: Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tl-item.tl-action .tl-label  { color: #51cf66; }
+    .tl-item.tl-mutation .tl-label { color: #f0932b; }
+    .tl-item.tl-graphql .tl-label  { color: #b197fc; }
+
+    /* ── Schema tab ── */
+    .schema-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .schema-table th { background: #1e1e38; color: #a29bfe; padding: 8px 12px; text-align: left; border-bottom: 1px solid #333; }
+    .schema-table td { padding: 8px 12px; border-bottom: 1px solid #1e1e30; vertical-align: top; }
+    .schema-table tr:hover td { background: #1a1a2e; }
+    .schema-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+    .schema-badge.mutation { background: #f0932b; color: white; }
+    .schema-badge.query    { background: #667eea; color: white; }
+    .shape-key { display: inline-block; background: #1e1e38; color: #9cdcfe; padding: 1px 5px; border-radius: 3px; margin: 2px; font-family: Consolas, monospace; font-size: 11px; }
+
+    /* ── Extract tab ── */
+    .extract-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .extract-card { background: #1e1e30; border: 1px solid #2a2a40; border-radius: 6px; padding: 12px; overflow: hidden; }
+    .extract-card h4 { font-size: 11px; color: #a29bfe; margin-bottom: 6px; text-transform: uppercase; }
+    .extract-card pre { font-size: 10px; color: #ccc; font-family: Consolas, monospace; white-space: pre-wrap; word-break: break-all; max-height: 120px; overflow: auto; }
+    .extract-card .dl-btn { margin-top: 8px; font-size: 10px; padding: 3px 8px; background: #667eea; color: white; border: none; border-radius: 3px; cursor: pointer; }
+
+    /* ── Scraped grid ── */
+    .scraped-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .scraped-item { background: #1e1e30; border: 1px solid #2a2a40; border-radius: 6px; overflow: hidden; }
+    .scraped-item img { width: 100%; height: 140px; object-fit: cover; }
+    .scraped-item-info { padding: 8px 10px; font-size: 11px; }
+    .scraped-item-info button { margin-top: 4px; font-size: 10px; padding: 3px 8px; background: #667eea; color: white; border: none; border-radius: 3px; cursor: pointer; }
+
+    /* ── Notification ── */
+    .notification {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #333; color: white; padding: 10px 20px; border-radius: 6px;
+      font-size: 13px; z-index: 999; animation: fadeIn 0.2s;
+    }
+    @keyframes fadeIn { from { opacity:0; transform: translateX(-50%) translateY(6px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+
+    .empty-state { text-align: center; padding: 40px 20px; color: #555; font-size: 14px; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0e0e14; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div>
+    <h1>🔬 WiretapSuite <span style="font-size:12px;opacity:0.6">v2.0 — Full Intelligence Suite</span></h1>
+    <div class="subtitle">GraphQL Detection · Replay Engine · Action Correlation · Schema Extraction · Timeline</div>
+  </div>
+  <div class="header-stats">
+    <div class="stat-badge"><strong id="totalRequests">0</strong>Requests</div>
+    <div class="stat-badge graphql"><strong id="totalGraphQL">0</strong>GraphQL</div>
+    <div class="stat-badge mutation"><strong id="totalMutations">0</strong>Mutations</div>
+    <div class="stat-badge"><strong id="totalSnippets">0</strong>Saved</div>
+    <div class="stat-badge"><strong id="schemaEntries">0</strong>Schema</div>
+  </div>
+</div>
+
+<!-- Top Bar -->
+<div class="top-bar">
+  <button class="filter-btn active" data-filter="all">All</button>
+  <button class="filter-btn" data-filter="GET">GET</button>
+  <button class="filter-btn" data-filter="POST">POST</button>
+  <button class="filter-btn method-graphql"  data-filter="graphql">🔷 GraphQL</button>
+  <button class="filter-btn method-mutation" data-filter="mutation">🔥 Mutations</button>
+  <button class="filter-btn method-failed"   data-filter="failed">❌ Failed</button>
+  <input type="text" id="searchInput" placeholder="🔍 Search URL, headers, body, GQL name…">
+  <button class="top-btn btn-refresh"  id="refreshData">🔄 Refresh</button>
+  <button class="top-btn btn-export"   id="exportAllBtn">📤 Export All</button>
+  <button class="top-btn btn-export"   id="exportFilteredBtn" style="background:#aaa;">📤 Filtered</button>
+  <button class="top-btn btn-clear"    id="clearData">🗑 Clear</button>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <!-- Left: request list -->
+  <div class="list-panel" id="requestList"></div>
+
+  <!-- Right: tabbed panel -->
+  <div class="right-panel">
+    <div class="panel-tabs">
+      <div class="panel-tab active" data-tab="detail">Detail</div>
+      <div class="panel-tab" data-tab="replay">Replay</div>
+      <div class="panel-tab" data-tab="timeline">⏱ Timeline</div>
+      <div class="panel-tab" data-tab="schema">🗂 Schema</div>
+      <div class="panel-tab" data-tab="extract">🔎 Extract</div>
+      <div class="panel-tab" data-tab="scraped">🖼 Scraped</div>
+    </div>
+
+    <!-- Detail Tab -->
+    <div id="detailTab" class="tab-content active">
+      <div class="empty-detail" id="detailEmpty"><p>← Select a request to inspect it</p></div>
+      <div id="detailView" style="display:none">
+        <div id="requestContent"></div>
+        <div id="responseContent"></div>
+      </div>
+    </div>
+
+    <!-- Replay Tab -->
+    <div id="replayTab" class="tab-content">
+      <div class="form-group">
+        <label>Method</label>
+        <select id="replayMethod">
+          <option>GET</option><option>POST</option><option>PUT</option>
+          <option>PATCH</option><option>DELETE</option>
+        </select>
+      </div>
+      <div class="form-group"><label>URL</label><input type="text" id="replayUrl" placeholder="https://..."></div>
+      <div class="form-group"><label>Headers (JSON)</label><textarea id="replayHeaders" rows="4">{}</textarea></div>
+      <div class="form-group"><label>Body (JSON / raw)</label><textarea id="replayBody" rows="5"></textarea></div>
+      <button class="btn-primary" id="replayBtn2">▶ Send Request</button>
+      <button class="btn-primary" id="refreshReplayBtn" style="background:#e67e22;margin-left:8px" title="Auto-fetches fresh fb_dtsg/lsd CSRF tokens from the page, then replays. Fixes error 1357004.">🔄 Refresh Tokens &amp; Replay</button>
+      <div id="replayResponse" style="display:none;margin-top:16px">
+        <div class="section"><div class="section-title">Response</div><div class="section-content">
+          <div id="responseStatus" style="margin-bottom:8px;font-size:12px"></div>
+          <div class="code-block" id="responseBody" style="max-height:300px;overflow-y:auto"></div>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- Timeline Tab (Phase 9) -->
+    <div id="timelineTab" class="tab-content">
+      <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
+        <strong style="font-size:12px">📅 Action → Request Timeline</strong>
+        <button class="top-btn btn-refresh" id="refreshTimeline" style="padding:4px 10px;font-size:11px">🔄 Refresh</button>
+      </div>
+      <div class="timeline" id="timelineContainer">
+        <div class="empty-state">Loading timeline…</div>
+      </div>
+    </div>
+
+    <!-- Schema Tab (Phase 7) -->
+    <div id="schemaTab" class="tab-content">
+      <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
+        <strong style="font-size:12px">🗂 Extracted API Schema</strong>
+        <button class="top-btn btn-refresh" id="refreshSchema" style="padding:4px 10px;font-size:11px">🔄 Refresh</button>
+        <button class="top-btn btn-clear" id="clearSchema" style="padding:4px 10px;font-size:11px">🗑 Clear</button>
+        <button class="top-btn btn-export" id="exportSchema" style="padding:4px 10px;font-size:11px">📤 Export</button>
+      </div>
+      <div id="schemaContainer"><div class="empty-state">No GraphQL mutations captured yet.</div></div>
+    </div>
+
+    <!-- Extract Tab (Phase 8) -->
+    <div id="extractTab" class="tab-content">
+      <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <strong style="font-size:12px">🔎 Deep Extract from Selected Response</strong>
+        <button class="btn-primary" id="extractBtn" style="padding:5px 12px;font-size:11px">⚡ Extract</button>
+        <button class="top-btn btn-export" id="exportExtractJsonBtn" style="padding:4px 10px;font-size:11px">📤 JSON</button>
+        <button class="top-btn btn-export" id="exportExtractCsvBtn"  style="padding:4px 10px;font-size:11px">📤 CSV</button>
+      </div>
+      <div id="extractContainer"><div class="empty-state">Select a request and click ⚡ Extract</div></div>
+    </div>
+
+    <!-- Scraped Tab -->
+    <div id="scrapedTab" class="tab-content">
+      <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
+        <strong style="font-size:12px">🖼 Scraped Data</strong>
+        <button class="btn-primary" id="scrapeBtn" style="padding:5px 12px;font-size:11px">🔍 Scrape from Response</button>
+        <button class="top-btn btn-clear" id="clearScrapedBtn" style="padding:4px 10px;font-size:11px">🗑 Clear</button>
+      </div>
+      <div class="scraped-grid" id="scrapedGrid"><div class="empty-state">No scraped data yet.</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="fullpage.js"></script>
+</body>
+</html>

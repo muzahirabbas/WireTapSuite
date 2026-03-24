@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "WiretapSuite: Reverse Engineer & Automate Web App APIs",
+  "version": "2.0",
+  "description": "Deep API intelligence: GraphQL detection, mutation highlighting, replay engine, action correlation, schema extraction, timeline view, and safe deep capture.",
+
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+
+  "permissions": [
+    "storage",
+    "tabs",
+    "webRequest",
+    "webNavigation",
+    "scripting",
+    "debugger",
+    "cookies"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "MAIN"
+    }
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html"
+  },
+
+  "web_accessible_resources": [{
+    "resources": ["content.js", "fullpage.html", "inject.js"],
+    "matches": ["<all_urls>"]
+  }]
+}

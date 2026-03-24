@@ -1,0 +1,156 @@
+/* General Reset for the Popup */
+body {
+  width: 320px; /* Slightly wider than default */
+  min-height: 200px;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #333;
+  background: #ffffff;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto; /* Allow scrolling if list gets too long */
+}
+
+/* Header Styling */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background: #f8f9fa;
+  border-bottom: 2px solid #007bff;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+/* The List of Snippets */
+#apiList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 10px;
+}
+
+/* Individual Snippet Card */
+.snippet {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.snippet:hover {
+  background: #f0f7ff; /* Light blue tint on hover */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.snippet:active {
+  transform: translateY(0);
+}
+
+/* Typography inside the snippet */
+.snippet .method {
+  float: right;
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: bold;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #e3f2fd;
+  color: #0d47a1;
+  margin-bottom: 2px;
+}
+
+.snippet .name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3e50;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.snippet .url {
+  display: block;
+  font-size: 11px;
+  color: #637381;
+  margin-top: 2px;
+  font-family: 'Consolas', monospace;
+}
+
+/* The Bottom Control Bar */
+.controls {
+  padding: 15px;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 8px;
+  background: #fafafa;
+  border-radius: 0 0 4px 4px;
+}
+
+button {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+/* Button Variants */
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+.btn-primary:hover { background: #0056b3; }
+
+.btn-secondary {
+  background: #e0e0e0;
+  color: #333;
+}
+.btn-secondary:hover { background: #d0d0d0; }
+
+/* The "Live Feed" indicator */
+#liveView {
+  margin-top: 5px;
+  padding: 8px;
+  background: #fff3e6; /* Subtle orange tint */
+  border-left: 3px solid #ff9800;
+  border-bottom: 1px solid #ffeaa;
+  font-size: 11px;
+  color: #d35400;
+  font-weight: bold;
+  border-radius: 2px;
+  padding-left: 10px;
+}
+
+/* Input Group for Editing */
+.input-group {
+  position: relative;
+  margin-bottom: 5px;
+}
+.input-group input {
+  width: 100%;
+  padding: 6px;
+  box-sizing: border-box; /* Fixes width padding bug */
+}
+.input-group label {
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  font-size: 11px;
+  color: #aaa;
+  text-transform: uppercase;
+  pointer-events: none; /* Allows clicking through label */
+}

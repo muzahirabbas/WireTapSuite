@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>WiretapSuite: Reverse Engineer & Automate Web App APIs</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      width: 570px;
+      min-height: 500px;
+      max-height: 700px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0; padding: 0;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      flex-shrink: 0;
+    }
+    .header h3 { margin: 0; font-size: 16px; font-weight: 600; }
+    .header-controls { display: flex; gap: 6px; align-items: center; }
+    #count {
+      font-size: 11px;
+      background: rgba(255,255,255,0.2);
+      padding: 3px 8px;
+      border-radius: 12px;
+    }
+    #toggleBtn {
+      padding: 5px 12px; border: none; border-radius: 15px;
+      cursor: pointer; font-size: 11px; font-weight: 600; transition: all 0.2s;
+    }
+    #toggleBtn.paused   { background: #ff6b6b; color: white; }
+    #toggleBtn.sniffing { background: #51cf66; color: white; }
+
+    /* ── Banners ── */
+    .banner { padding: 8px 15px; font-size: 11px; flex-shrink: 0; }
+    .banner button { float: right; background: none; border: none; cursor: pointer; font-size: 14px; }
+    .banner-cdp    { background: #e8f5e9; border-bottom: 1px solid #4caf50; display: none; }
+    .banner-paused { background: #fff3cd; border-bottom: 1px solid #ffc107; display: none; }
+
+    /* ── Filter Bar ── */
+    .filter-bar {
+      display: flex; gap: 5px;
+      padding: 8px 12px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e0e0e0;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .filter-btn {
+      padding: 3px 9px; border: 1px solid #ddd; border-radius: 12px;
+      background: white; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.15s;
+    }
+    .filter-btn:hover { background: #f0f0f0; }
+    .filter-btn.active { background: #667eea; color: white; border-color: #667eea; }
+    .filter-btn.method-GET    { background: #d4edda; border-color: #28a745; color: #155724; }
+    .filter-btn.method-POST   { background: #cce5ff; border-color: #007bff; color: #004085; }
+    .filter-btn.method-PUT    { background: #fff3cd; border-color: #ffc107; color: #856404; }
+    .filter-btn.method-DELETE { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+    .filter-btn.method-PATCH  { background: #e2d5f1; border-color: #6f42c1; color: #5a3d7a; }
+    .filter-btn.method-graphql   { background: #e8d5fb; border-color: #9c4dcc; color: #5a0080; }
+    .filter-btn.method-mutation  { background: #ffecd6; border-color: #e67e00; color: #7a3900; }
+    .filter-btn.method-failed    { background: #fde8e8; border-color: #dc3545; color: #721c24; }
+    .filter-btn.method-WS     { background: #e2e3e5; border-color: #6c757d; color: #383d41; }
+
+    #searchBox {
+      flex: 1; min-width: 130px;
+      padding: 4px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px;
+    }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; }
+    .tab {
+      flex: 1; padding: 9px; text-align: center; cursor: pointer;
+      font-size: 12px; font-weight: 500; color: #666;
+      border-bottom: 2px solid transparent; transition: all 0.2s;
+    }
+    .tab:hover   { background: #f5f5f5; }
+    .tab.active  { color: #667eea; border-bottom-color: #667eea; }
+
+    /* ── Content ── */
+    .content  { flex: 1; overflow: hidden; position: relative; }
+    .panel    { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow-y: auto; display: none; }
+    .panel.active { display: block; }
+
+    #requestList, #snippetList, #actionsList { list-style: none; padding: 0; margin: 0; }
+
+    /* ── Request Items ── */
+    .request-item, .snippet-item, .action-item {
+      padding: 9px 14px; border-bottom: 1px solid #f0f0f0;
+      cursor: pointer; transition: background 0.15s;
+      border-left: 3px solid transparent;
+    }
+    .request-item:hover, .snippet-item:hover, .action-item:hover { background: #f8f9ff; }
+    .request-item.selected, .snippet-item.selected {
+      background: #e8ebff; border-left-color: #667eea;
+    }
+    /* Phase 4: Mutation highlight */
+    .request-item.is-mutation {
+      border-left-color: #e67e00;
+      background: linear-gradient(90deg, #fff8f0 0, transparent 40px);
+    }
+    .request-item.is-mutation:hover { background: #fff3e0; }
+    .request-item.is-failed { border-left-color: #dc3545; }
+    .request-item.is-graphql:not(.is-mutation) { border-left-color: #9c4dcc; }
+
+    /* ── Method badge ── */
+    .method {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      padding: 2px 6px; border-radius: 3px; margin-right: 6px; text-transform: uppercase;
+    }
+    .method.GET     { background: #d4edda; color: #155724; }
+    .method.POST    { background: #cce5ff; color: #004085; }
+    .method.PUT     { background: #fff3cd; color: #856404; }
+    .method.DELETE  { background: #f8d7da; color: #721c24; }
+    .method.PATCH   { background: #e2d5f1; color: #5a3d7a; }
+    .method.HEAD, .method.OPTIONS { background: #e2e3e5; color: #383d41; }
+    .method.WS      { background: #6c757d; color: white; }
+    .method.BEACON  { background: #fd7e14; color: white; }
+
+    .tag-badge {
+      display: inline-block; font-size: 9px; font-weight: 700;
+      padding: 1px 5px; border-radius: 10px; margin-left: 4px; vertical-align: middle;
+    }
+    .tag-graphql  { background: #9c4dcc; color: white; }
+    .tag-mutation { background: #e67e00; color: white; }
+
+    .url {
+      font-size: 12px; color: #333; font-family: Consolas, Monaco, monospace;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;
+    }
+    .meta { font-size: 10px; color: #888; margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .meta-item { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+    .meta-item.has-auth   { background: #fff3cd; color: #856404; }
+    .meta-item.has-action { background: #d4edda; color: #155724; }
+
+    .timing-badge { display: inline-block; font-size: 9px; padding: 1px 4px; border-radius: 3px; margin-left: 5px; }
+    .timing-badge.fast   { background: #d4edda; color: #155724; }
+    .timing-badge.medium { background: #fff3cd; color: #856404; }
+    .timing-badge.slow   { background: #f8d7da; color: #721c24; }
+
+    /* ── Detail View ── */
+    #detailView {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: white; z-index: 10; display: none; flex-direction: column;
+    }
+    #detailView.visible { display: flex; }
+
+    .detail-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 15px; border-bottom: 1px solid #e0e0e0; background: #f8f9fa;
+    }
+    .detail-header h4 { margin: 0; font-size: 13px; }
+    .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #666; padding: 0; }
+
+    /* Detail tabs (for replay bundle) */
+    .detail-tabs { display: flex; border-bottom: 1px solid #e0e0e0; background: #fafafa; }
+    .detail-tab {
+      padding: 6px 14px; cursor: pointer; font-size: 11px; font-weight: 500; color: #666;
+      border-bottom: 2px solid transparent; transition: all 0.15s;
+    }
+    .detail-tab.active { color: #667eea; border-bottom-color: #667eea; }
+
+    .detail-content  { flex: 1; overflow-y: auto; padding: 12px; }
+    .detail-section  { margin-bottom: 12px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+    .detail-section-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 12px; background: #f8f9fa; border-bottom: 1px solid #e0e0e0; cursor: pointer;
+    }
+    .detail-section-header h5 { margin: 0; font-size: 11px; color: #667eea; text-transform: uppercase; }
+    .detail-section-content { padding: 8px 12px; max-height: 200px; overflow-y: auto; }
+    .detail-box {
+      background: #1e1e1e; color: #d4d4d4; border-radius: 4px;
+      padding: 8px 10px; font-family: Consolas, Monaco, monospace;
+      font-size: 11px; white-space: pre-wrap; word-break: break-all;
+    }
+    .detail-box .key     { color: #9cdcfe; }
+    .detail-box .string  { color: #ce9178; }
+    .detail-box .number  { color: #b5cea8; }
+    .detail-box .boolean { color: #569cd6; }
+    .detail-box .null    { color: #569cd6; }
+
+    /* Highlights */
+    .auth-highlight {
+      background: #fff3cd; border-left: 3px solid #ffc107;
+      padding: 7px 12px; margin-bottom: 8px; font-size: 11px;
+    }
+    .auth-highlight strong { color: #856404; }
+
+    .action-correlation {
+      background: #d4edda; border-left: 3px solid #28a745;
+      padding: 7px 12px; margin-bottom: 8px; font-size: 11px;
+    }
+    .action-correlation strong { color: #155724; }
+
+    /* Phase 1: GraphQL info box */
+    .gql-highlight {
+      background: #f3e5fb; border-left: 3px solid #9c4dcc;
+      padding: 7px 12px; margin-bottom: 8px; font-size: 11px;
+    }
+    .gql-highlight strong { color: #5a0080; }
+    .gql-mutation { background: #fff3e0; border-left-color: #e67e00; }
+    .gql-mutation strong { color: #7a3900; }
+
+    /* Phase 2: Replay bundle code */
+    .replay-code-block {
+      background: #1e1e1e; color: #d4d4d4;
+      border-radius: 4px; padding: 10px;
+      font-family: Consolas, Monaco, monospace;
+      font-size: 11px; white-space: pre-wrap; word-break: break-all;
+      max-height: 160px; overflow-y: auto;
+    }
+    .replay-tabs       { display: flex; gap: 4px; margin-bottom: 8px; }
+    .replay-tab-btn {
+      padding: 3px 10px; border: 1px solid #ddd; border-radius: 10px;
+      background: #fff; cursor: pointer; font-size: 11px; font-weight: 600;
+    }
+    .replay-tab-btn.active { background: #667eea; color: white; border-color: #667eea; }
+
+    /* Modification area */
+    .mod-area { margin-top: 10px; }
+    .mod-area label { display: block; font-size: 11px; font-weight: 600; color: #555; margin-bottom: 3px; }
+    .mod-area textarea {
+      width: 100%; min-height: 70px; padding: 6px 8px;
+      border: 1px solid #ddd; border-radius: 4px;
+      font-family: Consolas, Monaco, monospace; font-size: 11px;
+      resize: vertical;
+    }
+    .mod-send-btn {
+      margin-top: 6px; padding: 6px 14px; background: #667eea; color: white;
+      border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;
+    }
+    .mod-send-btn:hover { background: #5a6fd6; }
+    .mod-response { margin-top: 8px; }
+    .mod-response .detail-box { max-height: 120px; overflow-y: auto; }
+
+    /* ── Action Bar (bottom buttons) ── */
+    .action-bar {
+      padding: 8px 14px; border-top: 1px solid #e0e0e0;
+      display: flex; gap: 6px; flex-shrink: 0;
+    }
+    .action-bar button {
+      flex: 1; padding: 7px; border: none; border-radius: 4px;
+      cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.2s;
+    }
+    #cdpBtn       { background: #6f42c1; color: white; }
+    #cdpBtn:hover { background: #5a32a3; }
+    #deepCaptureBtn { background: #17a2b8; color: white; font-size: 10px; }
+    #deepCaptureBtn:hover  { background: #138496; }
+    #deepCaptureBtn.off    { background: #868e96; }
+    #fullPageBtn  { background: #667eea; color: white; }
+    #fullPageBtn:hover { background: #5a6fd6; }
+    #refreshBtn   { background: #17a2b8; color: white; }
+    #refreshBtn:hover { background: #138496; }
+    #exportBtn    { background: #28a745; color: white; }
+    #exportBtn:hover { background: #218838; }
+    #clearBtn     { background: #e0e0e0; color: #333; }
+    #clearBtn:hover { background: #d0d0d0; }
+    #saveBtn      { background: #51cf66; color: white; }
+    #saveBtn:hover { background: #40c057; }
+    #replayBtn    { background: #ffd43b; color: #333; }
+    #replayBtn:hover { background: #fcc419; }
+    #copyBtn      { background: #6f42c1; color: white; }
+    #copyBtn:hover { background: #5a32a3; }
+
+    .copy-section-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 11px; color: #667eea; padding: 2px 6px; border-radius: 3px;
+    }
+    .copy-section-btn:hover { background: #e8ebff; }
+
+    /* ── Empty State ── */
+    .empty-state { text-align: center; padding: 40px 20px; color: #888; }
+    .empty-state p { margin: 10px 0; font-size: 13px; }
+
+    /* ── Status indicator ── */
+    .status-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+    .status-indicator.active { background: #51cf66; animation: pulse 2s infinite; }
+    .status-indicator.paused { background: #ff6b6b; }
+
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <h3>
+      <span class="status-indicator active" id="statusIndicator"></span>
+      WiretapSuite <small style="font-size:10px;opacity:0.7">v2</small>
+    </h3>
+    <div class="header-controls">
+      <span id="count">0</span>
+      <button id="toggleBtn" class="sniffing" title="Toggle content-script capture">⏸ Normal</button>
+    </div>
+  </div>
+
+  <!-- CDP Banner -->
+  <div id="cdpBanner" class="banner banner-cdp">
+    <strong>✅ CDP Mode Active:</strong> Deep browser-level capture enabled.
+    <button id="dismissCdpBanner">×</button>
+  </div>
+
+  <!-- Paused Banner -->
+  <div id="normalBanner" class="banner banner-paused">
+    <strong>⏸ Capture Paused:</strong> Enable to capture requests.
+    <button id="dismissNormalBanner">×</button>
+  </div>
+
+  <!-- Phase 6: Enhanced Filter Bar -->
+  <div class="filter-bar">
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn method-GET"      data-filter="GET">GET</button>
+    <button class="filter-btn method-POST"     data-filter="POST">POST</button>
+    <button class="filter-btn method-PUT"      data-filter="PUT">PUT</button>
+    <button class="filter-btn method-DELETE"   data-filter="DELETE">DEL</button>
+    <button class="filter-btn method-PATCH"    data-filter="PATCH">PATCH</button>
+    <button class="filter-btn method-graphql"  data-filter="graphql">🔷 GQL</button>
+    <button class="filter-btn method-mutation" data-filter="mutation">🔥 Mutate</button>
+    <button class="filter-btn method-failed"   data-filter="failed">❌ Failed</button>
+    <button class="filter-btn method-WS"       data-filter="websocket">WS</button>
+    <input type="text" id="searchBox" placeholder="🔍 URL, headers, body, GQL name…">
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-tab="requests">Live Requests</div>
+    <div class="tab" data-tab="snippets">Saved</div>
+    <div class="tab" data-tab="actions">User Actions</div>
+  </div>
+
+  <div class="content">
+    <!-- Live Requests Panel -->
+    <div id="requestsPanel" class="panel active">
+      <ul id="requestList"></ul>
+      <div id="requestsEmpty" class="empty-state">
+        <p>📡 No requests captured yet</p>
+        <p style="font-size:11px">Navigate to a page and interact with it</p>
+      </div>
+    </div>
+
+    <!-- Saved Snippets Panel -->
+    <div id="snippetsPanel" class="panel">
+      <ul id="snippetList"></ul>
+      <div id="snippetsEmpty" class="empty-state">
+        <p>📋 No saved snippets</p>
+        <p style="font-size:11px">Click "Save" on a request to store it</p>
+      </div>
+    </div>
+
+    <!-- User Actions Panel -->
+    <div id="actionsPanel" class="panel">
+      <ul id="actionsList"></ul>
+      <div id="actionsEmpty" class="empty-state">
+        <p>👆 No user actions tracked</p>
+        <p style="font-size:11px">Clicks, form submits, and Enter-key events are tracked</p>
+      </div>
+    </div>
+
+    <!-- Detail View -->
+    <div id="detailView">
+      <div class="detail-header">
+        <h4 id="detailTitle">Request Details</h4>
+        <button class="close-btn" id="closeDetail">&times;</button>
+      </div>
+      <div class="detail-content" id="detailContent"></div>
+      <div class="action-bar" id="detailActions">
+        <button id="saveBtn">💾 Save</button>
+        <button id="replayBtn">▶ Replay</button>
+        <button id="copyBtn">📋 cURL</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Action Bar -->
+  <div class="action-bar">
+    <button id="cdpBtn" title="CDP Mode">🔬 CDP</button>
+    <button id="deepCaptureBtn" title="Toggle deep body capture (CDP)">🌊 Deep</button>
+    <button id="fullPageBtn" title="Open full suite">🖥️ Suite</button>
+    <button id="refreshBtn">🔄</button>
+    <button id="exportBtn" title="Export JSON">📤</button>
+    <button id="clearBtn">🗑</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
