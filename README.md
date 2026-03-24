@@ -8,7 +8,7 @@
 
 **Deep API intelligence for developers, security researchers, and automation engineers**
 
-[Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [User Guide](#-user-guide) • [API Reference](#-api-reference) • [Roadmap](#-roadmap)
+[Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [User Guide](#-user-guide) • [Roadmap](#-roadmap) • [Contributing](#-contributing)
 
 </div>
 
@@ -127,8 +127,8 @@ The replay engine includes built-in support for refreshing CSRF tokens on:
 
 1. **Clone or download** this repository
    ```bash
-   git clone https://github.com/yourusername/apisniff.git
-   cd apisniff
+   git clone https://github.com/muzahirabbas/WireTap.git
+   cd WireTap
    ```
 
 2. **Open Chrome Extensions**
@@ -137,7 +137,7 @@ The replay engine includes built-in support for refreshing CSRF tokens on:
 
 3. **Load the extension**
    - Click **Load unpacked**
-   - Select the `apisniff` folder
+   - Select the `WireTap` folder
 
 4. **Verify installation**
    - You should see the WiretapSuite icon in your toolbar
@@ -632,7 +632,7 @@ user.posts[0].likes,number,10
 ### File Structure
 
 ```
-apisniff/
+WireTap/
 ├── manifest.json              # Extension manifest (MV3)
 ├── manifest-enterprise.json   # Enterprise variant
 ├── background.js              # Service worker (capture, storage, CDP)
@@ -1091,7 +1091,7 @@ In Chrome's extension storage (`chrome.storage.local`):
 
 **MIT License**
 
-Copyright (c) 2024 WiretapSuite
+Copyright (c) 2024 Muzahir Abbas
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1124,15 +1124,15 @@ SOFTWARE.
 
 ## 📬 Contact
 
-- **Issues:** [GitHub Issues](https://github.com/yourusername/apisniff/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/yourusername/apisniff/discussions)
-- **Email:** your-email@example.com (if applicable)
+- **Issues:** [GitHub Issues](https://github.com/muzahirabbas/WireTap/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/muzahirabbas/WireTap/discussions)
+- **Email:** (Open an issue for support)
 
 ---
 
 <div align="center">
 
-**Made with ❤️ for developers and security researchers**
+**Made with ❤️ by Muzahir Abbas for developers and security researchers**
 
 [⬆ Back to Top](#-wiretabsuite-reverse-engineer--automate-web-app-apis)
 
