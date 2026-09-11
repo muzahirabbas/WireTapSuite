@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WireTapSuite - Deep API Intelligence for Chrome</title>
+  <meta name="description" content="Reverse engineer and automate web app APIs with GraphQL detection, mutation highlighting, replay engine, and more.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-card: #16161f;
+      --bg-card-hover: #1c1c28;
+      --border: #1e1e2e;
+      --border-glow: #667eea33;
+      --text-primary: #e8e8ed;
+      --text-secondary: #8888a0;
+      --text-muted: #555566;
+      --accent-1: #667eea;
+      --accent-2: #764ba2;
+      --accent-3: #f093fb;
+      --accent-green: #51cf66;
+      --accent-orange: #ff922b;
+      --accent-red: #ff6b6b;
+      --accent-cyan: #22d3ee;
+      --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      --gradient-hero: linear-gradient(135deg, #667eea22 0%, #764ba222 50%, #f093fb22 100%);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ===== NAV ===== */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 1rem 2rem;
+      background: rgba(10, 10, 15, 0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      transition: all 0.3s;
+    }
+    nav.scrolled { background: rgba(10, 10, 15, 0.95); }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 0.75rem;
+      font-weight: 700; font-size: 1.25rem; text-decoration: none; color: var(--text-primary);
+    }
+    .nav-logo svg { width: 32px; height: 32px; }
+    .nav-links { display: flex; gap: 2rem; align-items: center; }
+    .nav-links a {
+      color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;
+      font-weight: 500; transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--accent-1); }
+    .nav-cta {
+      background: var(--gradient-1); color: white !important;
+      padding: 0.5rem 1.25rem; border-radius: 8px; font-weight: 600 !important;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .nav-cta:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    /* ===== HERO ===== */
+    .hero {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      position: relative; padding: 6rem 2rem 4rem;
+    }
+    .hero-bg {
+      position: absolute; inset: 0; overflow: hidden;
+    }
+    .hero-bg::before {
+      content: ''; position: absolute; top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(ellipse at 30% 50%, #667eea15 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 50%, #764ba215 0%, transparent 50%),
+                  radial-gradient(ellipse at 50% 30%, #f093fb10 0%, transparent 50%);
+      animation: heroFloat 20s ease-in-out infinite;
+    }
+    @keyframes heroFloat {
+      0%, 100% { transform: translate(0, 0) rotate(0deg); }
+      33% { transform: translate(2%, -2%) rotate(1deg); }
+      66% { transform: translate(-1%, 1%) rotate(-0.5deg); }
+    }
+    .hero-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(102, 126, 234, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(102, 126, 234, 0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+    .hero-content { position: relative; text-align: center; max-width: 900px; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.4rem 1rem; border-radius: 999px;
+      background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.3);
+      font-size: 0.8rem; color: var(--accent-1); font-weight: 600;
+      margin-bottom: 2rem; letter-spacing: 0.05em;
+    }
+    .hero-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .hero h1 {
+      font-size: clamp(3rem, 7vw, 5.5rem); font-weight: 900;
+      line-height: 1.05; margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #fff 0%, #e8e8ed 30%, #667eea 70%, #f093fb 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 1.25rem; color: var(--text-secondary); max-width: 650px;
+      margin: 0 auto 2.5rem; line-height: 1.7;
+    }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.85rem 2rem; border-radius: 12px; font-weight: 600;
+      font-size: 1rem; text-decoration: none; transition: all 0.3s;
+      cursor: pointer; border: none;
+    }
+    .btn-primary {
+      background: var(--gradient-1); color: white;
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(102, 126, 234, 0.5); }
+    .btn-secondary {
+      background: var(--bg-card); color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--bg-card-hover); border-color: var(--accent-1); }
+
+    /* ===== TERMINAL PREVIEW ===== */
+    .terminal-preview {
+      max-width: 800px; margin: 4rem auto 0;
+      background: var(--bg-card); border-radius: 16px;
+      border: 1px solid var(--border); overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(102, 126, 234, 0.1);
+    }
+    .terminal-header {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.75rem 1rem; background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .terminal-dot.red { background: #ff5f56; }
+    .terminal-dot.yellow { background: #ffbd2e; }
+    .terminal-dot.green { background: #27c93f; }
+    .terminal-title { margin-left: 0.75rem; font-size: 0.8rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+    .terminal-body {
+      padding: 1.5rem; font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem; line-height: 1.8; overflow-x: auto;
+    }
+    .terminal-line { display: flex; gap: 0.5rem; }
+    .terminal-prompt { color: var(--accent-green); }
+    .terminal-cmd { color: var(--text-primary); }
+    .terminal-output { color: var(--text-secondary); padding-left: 1.5rem; }
+    .terminal-highlight { color: var(--accent-cyan); }
+    .terminal-string { color: var(--accent-orange); }
+    .terminal-comment { color: var(--text-muted); }
+
+    /* ===== FEATURES ===== */
+    .section {
+      padding: 6rem 2rem;
+      max-width: 1200px; margin: 0 auto;
+    }
+    .section-label {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      font-size: 0.8rem; font-weight: 600; color: var(--accent-1);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin-bottom: 1rem;
+    }
+    .section-title {
+      font-size: clamp(2rem, 4vw, 3rem); font-weight: 800;
+      margin-bottom: 1rem;
+    }
+    .section-desc {
+      font-size: 1.1rem; color: var(--text-secondary);
+      max-width: 600px; margin-bottom: 3rem;
+    }
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+    .feature-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2rem;
+      transition: all 0.3s; position: relative; overflow: hidden;
+    }
+    .feature-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 2px; background: var(--gradient-1); opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .feature-card:hover { border-color: var(--border-glow); transform: translateY(-4px); }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; margin-bottom: 1.25rem;
+      background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.2);
+    }
+    .feature-card h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .feature-card p { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
+
+    /* ===== BIG FEATURE ===== */
+    .big-feature {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4rem;
+      align-items: center; padding: 4rem 0;
+    }
+    .big-feature.reverse { direction: rtl; }
+    .big-feature.reverse > * { direction: ltr; }
+    .big-feature-visual {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 1.5rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+    .code-block {
+      background: var(--bg-primary); border-radius: 8px;
+      padding: 1.25rem; font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem; line-height: 1.7; overflow-x: auto;
+      border: 1px solid var(--border);
+    }
+    .code-block .keyword { color: var(--accent-1); }
+    .code-block .string { color: var(--accent-orange); }
+    .code-block .func { color: var(--accent-cyan); }
+    .code-block .comment { color: var(--text-muted); }
+    .code-block .number { color: var(--accent-green); }
+
+    /* ===== COMPARISON ===== */
+    .comparison-table {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+      background: var(--bg-card); border-radius: 16px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .comparison-table th, .comparison-table td {
+      padding: 1rem 1.25rem; text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .comparison-table th {
+      background: var(--bg-secondary); font-weight: 600;
+      font-size: 0.85rem; color: var(--text-secondary);
+      text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .comparison-table th:first-child { width: 28%; }
+    .comparison-table td { font-size: 0.9rem; }
+    .comparison-table td:not(:first-child) { text-align: center; }
+    .comparison-table th:not(:first-child) { text-align: center; }
+    .comparison-table tr:last-child td { border-bottom: none; }
+    .comparison-table tr:hover td { background: rgba(102, 126, 234, 0.03); }
+    .check { color: var(--accent-green); font-size: 1.2rem; }
+    .cross { color: var(--accent-red); font-size: 1.2rem; }
+    .partial { color: var(--accent-orange); font-size: 1.2rem; }
+    .comparison-table .highlight-col { background: rgba(102, 126, 234, 0.05); }
+
+    /* ===== INSTALL ===== */
+    .install-steps {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+    }
+    .install-step {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2rem; position: relative;
+    }
+    .step-number {
+      position: absolute; top: -14px; left: 20px;
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--gradient-1); color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700;
+    }
+    .install-step h3 { font-size: 1rem; margin-bottom: 0.75rem; }
+    .install-step code {
+      display: block; background: var(--bg-primary); padding: 0.75rem 1rem;
+      border-radius: 8px; font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem; color: var(--accent-cyan); margin-top: 0.75rem;
+      border: 1px solid var(--border);
+    }
+
+    /* ===== PLATFORMS ===== */
+    .platforms-row {
+      display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+      margin-top: 2rem;
+    }
+    .platform-chip {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.6rem 1.25rem; border-radius: 999px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      font-size: 0.85rem; font-weight: 500; color: var(--text-secondary);
+    }
+    .platform-chip .chip-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+
+    /* ===== STATS ===== */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem; margin: 3rem 0;
+    }
+    .stat-card {
+      text-align: center; padding: 2rem;
+      background: var(--bg-card); border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+    .stat-number {
+      font-size: 2.5rem; font-weight: 900;
+      background: var(--gradient-1);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label { color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem; }
+
+    /* ===== ROADMAP ===== */
+    .roadmap-list { display: flex; flex-direction: column; gap: 1rem; }
+    .roadmap-item {
+      display: flex; align-items: flex-start; gap: 1rem;
+      padding: 1.25rem; background: var(--bg-card);
+      border-radius: 12px; border: 1px solid var(--border);
+      transition: border-color 0.2s;
+    }
+    .roadmap-item:hover { border-color: var(--border-glow); }
+    .roadmap-phase {
+      flex-shrink: 0; padding: 0.3rem 0.75rem;
+      background: var(--gradient-1); border-radius: 6px;
+      font-size: 0.75rem; font-weight: 700; color: white;
+      white-space: nowrap;
+    }
+    .roadmap-item h4 { font-size: 0.95rem; margin-bottom: 0.25rem; }
+    .roadmap-item p { font-size: 0.85rem; color: var(--text-secondary); }
+    .roadmap-status {
+      display: inline-block; font-size: 0.7rem; font-weight: 600;
+      padding: 0.15rem 0.5rem; border-radius: 4px; margin-left: 0.5rem;
+    }
+    .status-progress { background: rgba(81, 207, 102, 0.15); color: var(--accent-green); }
+    .status-planned { background: rgba(102, 126, 234, 0.15); color: var(--accent-1); }
+
+    /* ===== CTA ===== */
+    .cta-section {
+      text-align: center; padding: 6rem 2rem;
+      position: relative;
+    }
+    .cta-section::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at center, #667eea15 0%, transparent 70%);
+    }
+    .cta-content { position: relative; }
+    .cta-content h2 {
+      font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 900; margin-bottom: 1rem;
+    }
+    .cta-content p { color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 2rem; }
+
+    /* ===== FOOTER ===== */
+    footer {
+      padding: 3rem 2rem; border-top: 1px solid var(--border);
+      text-align: center; color: var(--text-muted); font-size: 0.85rem;
+    }
+    footer a { color: var(--accent-1); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .footer-links { display: flex; gap: 2rem; justify-content: center; margin-bottom: 1rem; }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .big-feature { grid-template-columns: 1fr; gap: 2rem; }
+      .big-feature.reverse { direction: ltr; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      .hero { padding: 5rem 1.5rem 3rem; }
+      .section { padding: 4rem 1.5rem; }
+      .comparison-table { font-size: 0.8rem; }
+      .comparison-table th, .comparison-table td { padding: 0.75rem 0.5rem; }
+    }
+
+    /* ===== ANIMATIONS ===== */
+    .fade-up {
+      opacity: 0; transform: translateY(30px);
+      transition: opacity 0.6s, transform 0.6s;
+    }
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+    .fade-up.delay-1 { transition-delay: 0.1s; }
+    .fade-up.delay-2 { transition-delay: 0.2s; }
+    .fade-up.delay-3 { transition-delay: 0.3s; }
+    .fade-up.delay-4 { transition-delay: 0.4s; }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav id="nav">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <svg viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="8" fill="url(#navGrad)"/>
+          <path d="M10 16L14 20L22 12" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs><linearGradient id="navGrad" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#667eea"/><stop offset="1" stop-color="#764ba2"/></linearGradient></defs>
+        </svg>
+        WireTapSuite
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#replay">Replay Engine</a>
+        <a href="#install">Install</a>
+        <a href="#compare">Compare</a>
+        <a href="#roadmap">Roadmap</a>
+        <a href="https://github.com/muzahirabbas/WireTapSuite" class="nav-cta" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-bg"><div class="hero-grid"></div></div>
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        v2.0 &mdash; Chrome Extension Manifest V3
+      </div>
+      <h1>Reverse Engineer<br>Any Web API</h1>
+      <p>Deep API intelligence for developers, security researchers, and automation engineers. Capture, analyze, and replay any web application's network behavior.</p>
+      <div class="hero-actions">
+        <a href="https://github.com/muzahirabbas/WireTapSuite" class="btn btn-primary" target="_blank">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+        <a href="#install" class="btn btn-secondary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Quick Install
+        </a>
+      </div>
+
+      <!-- Terminal Preview -->
+      <div class="terminal-preview fade-up">
+        <div class="terminal-header">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot yellow"></div>
+          <div class="terminal-dot green"></div>
+          <span class="terminal-title">wiresuite &mdash; captured requests</span>
+        </div>
+        <div class="terminal-body">
+          <div class="terminal-line"><span class="terminal-prompt">●</span><span class="terminal-output" style="color:var(--accent-green)">CAPTURE ACTIVE</span> <span class="terminal-comment">listening on all tabs...</span></div>
+          <div class="terminal-line"><span class="terminal-comment">&nbsp;</span></div>
+          <div class="terminal-line"><span class="terminal-output"><span style="color:var(--accent-green)">POST</span> &nbsp;https://api.example.com/graphql</span></div>
+          <div class="terminal-line"><span class="terminal-output">&nbsp;&nbsp;&nbsp;├─ <span class="terminal-highlight">operation:</span> <span class="terminal-string">createUser</span></span></div>
+          <div class="terminal-line"><span class="terminal-output">&nbsp;&nbsp;&nbsp;├─ <span class="terminal-highlight">type:</span> <span style="color:var(--accent-orange)">mutation</span></span></div>
+          <div class="terminal-line"><span class="terminal-output">&nbsp;&nbsp;&nbsp;├─ <span class="terminal-highlight">status:</span> <span class="terminal-highlight">200 OK</span></span></div>
+          <div class="terminal-line"><span class="terminal-output">&nbsp;&nbsp;&nbsp;└─ <span class="terminal-highlight">replay:</span> <span class="terminal-string">python, typescript, curl, n8n, workers</span></span></div>
+          <div class="terminal-line"><span class="terminal-comment">&nbsp;</span></div>
+          <div class="terminal-line"><span class="terminal-output"><span style="color:var(--accent-1)">GET</span> &nbsp;&nbsp;https://api.example.com/users/me</span></div>
+          <div class="terminal-line"><span class="terminal-output">&nbsp;&nbsp;&nbsp;├─ <span class="terminal-highlight">tokens:</span> <span style="color:var(--accent-orange)">2 dynamic [DYNAMIC]</span></span></div>
+          <div class="terminal-line"><span class="terminal-output">&nbsp;&nbsp;&nbsp;└─ <span class="terminal-highlight">action:</span> <span class="terminal-string">click #profile-btn</span></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="section" id="features">
+    <div class="section-label fade-up">Features</div>
+    <h2 class="section-title fade-up">Everything you need to<br>understand any API</h2>
+    <p class="section-desc fade-up">From GraphQL detection to automatic code generation, WireTapSuite gives you superpowers.</p>
+
+    <div class="features-grid">
+      <div class="feature-card fade-up delay-1">
+        <div class="feature-icon">🔍</div>
+        <h3>GraphQL Detection</h3>
+        <p>Automatically identifies GraphQL endpoints, extracts operation names, doc_ids, variables, and classifies queries vs mutations.</p>
+      </div>
+      <div class="feature-card fade-up delay-2">
+        <div class="feature-icon">⚡</div>
+        <h3>Mutation Highlighting</h3>
+        <p>Write operations are visually highlighted with orange badges so you can instantly spot data-changing requests.</p>
+      </div>
+      <div class="feature-card fade-up delay-3">
+        <div class="feature-icon">🔄</div>
+        <h3>8-Format Replay</h3>
+        <p>Generate production-ready code for cURL, Python, TypeScript, Axios, Fetch, n8n, Cloudflare Workers, and Next.js.</p>
+      </div>
+      <div class="feature-card fade-up delay-1">
+        <div class="feature-icon">🎯</div>
+        <h3>Action Correlation</h3>
+        <p>Track clicks, form submits, and keyboard events that trigger each API request. Understand what causes what.</p>
+      </div>
+      <div class="feature-card fade-up delay-2">
+        <div class="feature-icon">📊</div>
+        <h3>Timeline View</h3>
+        <p>Visual timeline showing the chronological sequence of user actions and network requests with time deltas.</p>
+      </div>
+      <div class="feature-card fade-up delay-3">
+        <div class="feature-icon">🗂️</div>
+        <h3>Schema Extraction</h3>
+        <p>Build an API schema from captured GraphQL operations with variable shapes and sample payloads.</p>
+      </div>
+      <div class="feature-card fade-up delay-1">
+        <div class="feature-icon">🔓</div>
+        <h3>Token Sanitization</h3>
+        <p>Auto-detects CSRF, session IDs, bearer tokens and marks them as [DYNAMIC] in replay bundles.</p>
+      </div>
+      <div class="feature-card fade-up delay-2">
+        <div class="feature-icon">📡</div>
+        <h3>CDP Deep Capture</h3>
+        <p>Chrome DevTools Protocol integration for capturing response bodies that content scripts can't access.</p>
+      </div>
+      <div class="feature-card fade-up delay-3">
+        <div class="feature-icon">🧬</div>
+        <h3>Deep Extract</h3>
+        <p>Recursively flatten complex JSON into structured, searchable data with path, type, and value for every field.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- REPLAY ENGINE -->
+  <section class="section" id="replay">
+    <div class="big-feature fade-up">
+      <div>
+        <div class="section-label">Replay Engine</div>
+        <h2 class="section-title">One click. <br>8 formats. Production ready.</h2>
+        <p class="section-desc">Capture any request and instantly generate ready-to-use code with automatic CSRF token refresh, XSSI prefix stripping, and platform-specific optimizations.</p>
+        <div class="platforms-row" style="justify-content: flex-start;">
+          <div class="platform-chip"><span class="chip-dot" style="background:var(--accent-green)"></span> Python</div>
+          <div class="platform-chip"><span class="chip-dot" style="background:var(--accent-1)"></span> TypeScript</div>
+          <div class="platform-chip"><span class="chip-dot" style="background:var(--accent-orange)"></span> cURL</div>
+          <div class="platform-chip"><span class="chip-dot" style="background:var(--accent-cyan)"></span> n8n</div>
+          <div class="platform-chip"><span class="chip-dot" style="background:var(--accent-3)"></span> Workers</div>
+          <div class="platform-chip"><span class="chip-dot" style="background:var(--accent-red)"></span> Next.js</div>
+        </div>
+      </div>
+      <div class="big-feature-visual">
+        <div class="code-block">
+          <span class="comment"># Python replay with auto CSRF refresh</span><br>
+          <span class="keyword">import</span> requests, re<br><br>
+          <span class="func">session</span> = requests.Session()<br><br>
+          <span class="comment"># Auto-fetch fresh CSRF token</span><br>
+          resp = session.get(<span class="string">"https://target.com"</span>)<br>
+          csrf = re.findall(<span class="string">r'csrf_token.*?value="(.*?)"'</span>, resp.text)[<span class="number">0</span>]<br><br>
+          <span class="comment"># Replay the captured request</span><br>
+          resp = session.post(<span class="string">"https://target.com/api/graphql"</span>,<br>
+          &nbsp;&nbsp;headers={<span class="string">"x-csrf-token"</span>: csrf},<br>
+          &nbsp;&nbsp;json={<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"operationName"</span>: <span class="string">"createUser"</span>,<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"variables"</span>: {<span class="string">"name"</span>: <span class="string">"John"</span>},<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;<span class="string">"query"</span>: <span class="string">"mutation createUser..."</span><br>
+          &nbsp;&nbsp;})<br>
+          <span class="keyword">print</span>(resp.status_code)  <span class="comment"># 200</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="big-feature reverse fade-up">
+      <div>
+        <div class="section-label">Platform Support</div>
+        <h2 class="section-title">Built-in token handling<br>for major platforms</h2>
+        <p class="section-desc">WireTapSuite recognizes and auto-refreshes CSRF tokens for Facebook, Instagram, LinkedIn, YouTube, and generic Django/ASP.NET apps.</p>
+        <table style="margin-top:1.5rem; font-size:0.85rem; border-collapse:collapse;">
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:0.5rem 0; color:var(--text-secondary)">Facebook / Meta</td><td style="padding:0.5rem 0; text-align:right"><code style="color:var(--accent-cyan); font-family:'JetBrains Mono',monospace; font-size:0.8rem">fb_dtsg, lsd, jazoest</code></td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:0.5rem 0; color:var(--text-secondary)">Instagram</td><td style="padding:0.5rem 0; text-align:right"><code style="color:var(--accent-cyan); font-family:'JetBrains Mono',monospace; font-size:0.8rem">sessionid, csrftoken</code></td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:0.5rem 0; color:var(--text-secondary)">LinkedIn</td><td style="padding:0.5rem 0; text-align:right"><code style="color:var(--accent-cyan); font-family:'JetBrains Mono',monospace; font-size:0.8rem">JSESSIONID, Csrf-Token</code></td></tr>
+          <tr style="border-bottom:1px solid var(--border)"><td style="padding:0.5rem 0; color:var(--text-secondary)">YouTube / Google</td><td style="padding:0.5rem 0; text-align:right"><code style="color:var(--accent-cyan); font-family:'JetBrains Mono',monospace; font-size:0.8rem">SAPISIDHASH</code></td></tr>
+          <tr><td style="padding:0.5rem 0; color:var(--text-secondary)">Django / ASP.NET</td><td style="padding:0.5rem 0; text-align:right"><code style="color:var(--accent-cyan); font-family:'JetBrains Mono',monospace; font-size:0.8rem">csrf_token, XSRF-TOKEN</code></td></tr>
+        </table>
+      </div>
+      <div class="big-feature-visual">
+        <div class="code-block">
+          <span class="comment">// TypeScript replay with SAPISIDHASH</span><br>
+          <span class="keyword">import</span> { createHash } <span class="keyword">from</span> <span class="string">'crypto'</span>;<br><br>
+          <span class="keyword">const</span> <span class="func">generateHash</span> = (<br>
+          &nbsp;&nbsp;timestamp: <span class="keyword">number</span>,<br>
+          &nbsp;&nbsp;sapisid: <span class="keyword">string</span>,<br>
+          &nbsp;&nbsp;origin: <span class="keyword">string</span><br>
+          ) =&gt; {<br>
+          &nbsp;&nbsp;<span class="keyword">const</span> input = <span class="string">`${timestamp} ${sapisid} ${origin}`</span>;<br>
+          &nbsp;&nbsp;<span class="keyword">return</span> createHash(<span class="string">'sha1'</span>)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;.update(input).digest(<span class="string">'hex'</span>);<br>
+          };<br><br>
+          <span class="keyword">const</span> ts = Math.floor(Date.now() / <span class="number">1000</span>);<br>
+          <span class="keyword">const</span> hash = <span class="func">generateHash</span>(ts, sapisid, origin);<br><br>
+          <span class="comment">// Ready to replay</span><br>
+          headers[<span class="string">'Authorization'</span>] = <br>
+          &nbsp;&nbsp;<span class="string">`SAPISIDHASH ${ts}_${hash}`</span>;
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section class="section" id="install">
+    <div class="section-label fade-up">Get Started</div>
+    <h2 class="section-title fade-up">Install in 30 seconds</h2>
+    <p class="section-desc fade-up">Load unpacked in Chrome Developer Mode and start capturing.</p>
+
+    <div class="install-steps">
+      <div class="install-step fade-up delay-1">
+        <div class="step-number">1</div>
+        <h3>Clone the repo</h3>
+        <p style="color:var(--text-secondary); font-size:0.9rem;">Download or clone the repository to your machine.</p>
+        <code>git clone https://github.com/muzahirabbas/WireTapSuite.git</code>
+      </div>
+      <div class="install-step fade-up delay-2">
+        <div class="step-number">2</div>
+        <h3>Open Chrome Extensions</h3>
+        <p style="color:var(--text-secondary); font-size:0.9rem;">Navigate to chrome://extensions and enable Developer mode.</p>
+        <code>chrome://extensions/</code>
+      </div>
+      <div class="install-step fade-up delay-3">
+        <div class="step-number">3</div>
+        <h3>Load Unpacked</h3>
+        <p style="color:var(--text-secondary); font-size:0.9rem;">Click "Load unpacked" and select the WireTapSuite folder.</p>
+        <code>Load unpacked → Select folder</code>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARISON -->
+  <section class="section" id="compare">
+    <div class="section-label fade-up">Comparison</div>
+    <h2 class="section-title fade-up">How it stacks up</h2>
+    <p class="section-desc fade-up">WireTapSuite vs traditional tools. See why developers are switching.</p>
+
+    <div class="fade-up" style="overflow-x: auto;">
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th class="highlight-col">WireTapSuite</th>
+            <th>Chrome DevTools</th>
+            <th>Postman</th>
+            <th>Burp Suite</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>GraphQL Detection</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="partial">◐</span></td><td><span class="partial">◐</span></td></tr>
+          <tr><td>Mutation Highlighting</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Action Correlation</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Timeline View</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Schema Extraction</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="partial">◐</span></td><td><span class="partial">◐</span></td></tr>
+          <tr><td>8-Format Replay</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="partial">◐</span></td><td><span class="partial">◐</span></td></tr>
+          <tr><td>Auto Token Sanitization</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="partial">◐</span></td></tr>
+          <tr><td>CSRF Auto-Refresh</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Deep Extract</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Image Scraping</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>CDP Deep Capture</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="check">✓</span></td></tr>
+          <tr><td>Free</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="partial">◐</span></td><td><span class="cross">✗</span></td></tr>
+          <tr><td>Local Privacy</td><td class="highlight-col"><span class="check">✓</span></td><td><span class="check">✓</span></td><td><span class="cross">✗</span></td><td><span class="partial">◐</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="section">
+    <div class="stats-row fade-up">
+      <div class="stat-card">
+        <div class="stat-number">8</div>
+        <div class="stat-label">Replay Formats</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">5</div>
+        <div class="stat-label">Platform Token Handlers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">9+</div>
+        <div class="stat-label">Core Features</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">0</div>
+        <div class="stat-label">Data Leaves Your Browser</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section class="section" id="roadmap">
+    <div class="section-label fade-up">Roadmap</div>
+    <h2 class="section-title fade-up">What's coming next</h2>
+    <p class="section-desc fade-up">WireTapSuite is actively developed. Here's what's on the horizon.</p>
+
+    <div class="roadmap-list fade-up">
+      <div class="roadmap-item">
+        <div class="roadmap-phase">Phase 11</div>
+        <div>
+          <h4>WebSocket Inspector <span class="roadmap-status status-progress">In Progress</span></h4>
+          <p>Real-time WebSocket message capture, filtering, replay, and binary message decoding.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-phase">Phase 12</div>
+        <div>
+          <h4>Request Builder <span class="roadmap-status status-planned">Planned</span></h4>
+          <p>Visual request editor with environment variables, collections, and pre-request scripts.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-phase">Phase 13</div>
+        <div>
+          <h4>Response Post-Processing <span class="roadmap-status status-planned">Planned</span></h4>
+          <p>JSONPath/XPath extractor, response transformers, chained requests, and assertion testing.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-phase">Phase 14</div>
+        <div>
+          <h4>Collaboration <span class="roadmap-status status-planned">Planned</span></h4>
+          <p>Export/import collections, share snippets via URL, team workspace with cloud sync.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-phase">Phase 15</div>
+        <div>
+          <h4>Advanced Automation <span class="roadmap-status status-planned">Planned</span></h4>
+          <p>Visual workflow builder with conditional logic, loops, error handling, and scheduled execution.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-phase">Phase 18</div>
+        <div>
+          <h4>AI Assistance <span class="roadmap-status status-planned">Planned</span></h4>
+          <p>Auto-generate documentation, suggest replay formats, detect API patterns, natural language search.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="cta-content fade-up">
+      <h2>Start reverse engineering<br>APIs today</h2>
+      <p>Free, open-source, and privacy-first. All data stays in your browser.</p>
+      <div class="hero-actions">
+        <a href="https://github.com/muzahirabbas/WireTapSuite" class="btn btn-primary" target="_blank">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          Get Started on GitHub
+        </a>
+        <a href="#install" class="btn btn-secondary">Installation Guide</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-links">
+      <a href="https://github.com/muzahirabbas/WireTapSuite">GitHub</a>
+      <a href="https://github.com/muzahirabbas/WireTapSuite/issues">Issues</a>
+      <a href="https://github.com/muzahirabbas/WireTapSuite/blob/main/LICENSE">MIT License</a>
+    </div>
+    <p>Built by <a href="https://github.com/muzahirabbas">Muzahir Abbas</a> &mdash; MIT License</p>
+  </footer>
+
+  <script>
+    // Nav scroll effect
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('scrolled', window.scrollY > 50);
+    });
+
+    // Fade-in on scroll
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
